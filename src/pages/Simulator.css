@@ -1,0 +1,59 @@
+.simulator-container {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+.sim-cards {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1.5rem;
+  padding: 2rem;
+}
+
+.sim-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 1rem;
+  padding: 1.5rem;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-color);
+  background-color: var(--bg-secondary);
+}
+
+.sim-icon {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+}
+
+.whatsapp { background-color: #25D366; }
+.email { background-color: #ea4335; }
+.call { background-color: #3b82f6; }
+
+.response-box {
+  padding: 2rem;
+}
+.response-box pre {
+  background-color: var(--bg-primary);
+  padding: 1rem;
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+}
+.scam-notice {
+  margin-top: 1rem;
+  padding: 1rem;
+  background-color: rgba(239, 68, 68, 0.2);
+  color: #ef4444;
+  font-weight: 700;
+  border-radius: var(--radius-md);
+  border: 1px solid #ef4444;
+}

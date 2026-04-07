@@ -1,0 +1,85 @@
+.cmd-backdrop {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background-color: rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(4px);
+  z-index: 2000;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: 15vh;
+}
+
+.cmd-menu {
+  width: 100%;
+  max-width: 600px;
+  background: var(--bg-primary);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  box-shadow: 0 20px 40px rgba(0,0,0,0.2);
+  animation: scaleIn 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes scaleIn {
+  from { opacity: 0; transform: scale(0.95); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+.cmd-header {
+  display: flex;
+  align-items: center;
+  padding: 1rem 1.5rem;
+  border-bottom: 1px solid var(--border-color);
+  gap: 1rem;
+}
+
+.cmd-icon {
+  color: var(--text-muted);
+}
+
+.cmd-header input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  font-size: 1.1rem;
+  color: var(--text-primary);
+  outline: none;
+}
+
+.cmd-body {
+  padding: 1rem;
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.cmd-group {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 0.5rem 1rem;
+}
+
+.cmd-item {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.75rem 1rem;
+  border-radius: var(--radius-md);
+  color: var(--text-secondary);
+  font-size: 0.95rem;
+  transition: all 0.1s ease;
+}
+
+.cmd-item:hover, .cmd-item:focus {
+  background-color: var(--accent-primary);
+  color: white;
+}
+
+.cmd-empty {
+  padding: 2rem;
+  text-align: center;
+  color: var(--text-muted);
+}
