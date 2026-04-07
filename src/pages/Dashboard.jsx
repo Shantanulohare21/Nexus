@@ -47,6 +47,21 @@ const Dashboard = () => {
     }
   };
 
+  const getSentimentTag = (sentiment) => {
+    const s = sentiment?.toLowerCase() || 'neutral';
+    let icon = null;
+    if (s === 'urgent') icon = '⚡';
+    if (s === 'negative') icon = '😠';
+    if (s === 'positive') icon = '😊';
+    if (s === 'neutral') icon = '😐';
+
+    return (
+      <span className={`sentiment-tag ${s}`}>
+        {icon} {sentiment || 'Neutral'}
+      </span>
+    );
+  };
+
   const kanbanColumns = [
     { id: 'Pending', title: 'Pending' },
     { id: 'Preparing', title: 'Preparing' },
@@ -95,6 +110,7 @@ const Dashboard = () => {
                 <th>Item</th>
                 <th>Source</th>
                 <th>Status</th>
+                <th>Sentiment</th>
                 <th>Priority</th>
                 <th>Total</th>
                 <th className="no-print">Actions</th>
@@ -120,6 +136,7 @@ const Dashboard = () => {
                       </span>
                     </div>
                   </td>
+                  <td>{getSentimentTag(order.sentiment)}</td>
                   <td>
                     <span className={`priority-tag ${order.priority.toLowerCase()}`}>
                       {order.priority}

@@ -109,8 +109,8 @@ const pollGmail = async () => {
       if (total > 500) status = 'Awaiting Approval';
       if (isScam) status = 'SCAM ALERT';
 
-      const sql = `INSERT INTO orders VALUES (?,?,?,?,?,?,?,?,?,?,?)`;
-      db.run(sql, [orderId, from, product, quantity, new Date().toISOString().split('T')[0], time, 'Email', status, priority, total, isScam]);
+      const sql = `INSERT INTO orders VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`;
+      db.run(sql, [orderId, from, product, quantity, new Date().toISOString().split('T')[0], time, 'Email', status, priority, total, isScam, sentiment]);
       console.log(`[GMAIL] Auto-Captured Order: ${orderId} | Sentiment: ${sentiment}`);
     }
     connection.end();
@@ -143,13 +143,10 @@ app.post('/api/orders', (req, res) => {
   if (total > 500 && !isScam) status = 'Awaiting Approval';
   if (isScam) status = 'SCAM ALERT';
 
-  db.get('SELECT * FROM orders WHERE item = ? AND quantity = ? AND time = ?', [o.item, o.quantity, o.time], (err, row) => {
-    if (row && !err && !isScam) status = 'DUPLICATE WARNING';
-
-    const sql = `INSERT INTO orders (id, customerName, item, quantity, date, time, source, status, priority, total, isScam) VALUES (?,?,?,?,?,?,?,?,?,?,?)`;
-    db.run(sql, [o.id, o.customerName, o.item, o.quantity, o.date, o.time, o.source, status, priority, total, isScam], (err) => {
-      res.json({ id: o.id, isScam: isScam === 1, status, priority });
-    });
+  const sentiment = o.sentiment || detectSentiment(o.item);
+  const sql = `INSERT INTO orders (id, customerName, item, quantity, date, time, source, status, priority, total, isScam, sentiment) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`;
+  db.run(sql, [o.id, o.customerName, o.item, o.quantity, o.date, o.time, o.source, status, priority, total, isScam, sentiment], (err) => {
+    res.json({ id: o.id, isScam: isScam === 1, status, priority, sentiment });
   });
 });
 
@@ -185,7 +182,7 @@ app.post('/api/twilio/whatsapp', (req, res) => {
       ? `📋 OrderSync: Estimate for $${total} is awaiting approval.`
       : `✅ OrderSync: Confirmed! ${orderId}. Tone: ${sentiment}`;
 
-  db.run(`INSERT INTO orders VALUES (?,?,?,?,?,?,?,?,?,?,?)`, [orderId, profileName, item, quantity, new Date().toISOString().split('T')[0], time, 'WhatsApp', status, priority, total, isScam], () => {
+  db.run(`INSERT INTO orders VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`, [orderId, profileName, item, quantity, new Date().toISOString().split('T')[0], time, 'WhatsApp', status, priority, total, isScam, sentiment], () => {
     res.type('text/xml').send(`<Response><Message>${replyText}</Message></Response>`);
   });
 });
@@ -199,8 +196,9 @@ app.post('/api/webhooks/:source', (req, res) => {
   let status = total > 500 ? 'Awaiting Approval' : 'Pending';
   if (isScam) status = 'SCAM ALERT';
 
+  const sentiment = detectSentiment(payload.item || '');
   const orderId = `EXT-${Math.floor(Math.random() * 9000) + 1000}`;
-  db.run(`INSERT INTO orders VALUES (?,?,?,?,?,?,?,?,?,?,?)`, [orderId, payload.customerName || 'External', payload.item || 'Lunch Boxes', quantity, new Date().toISOString().split('T')[0], '12:00 PM', source, status, 'Medium', total, isScam], () => {
+  db.run(`INSERT INTO orders VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`, [orderId, payload.customerName || 'External', payload.item || 'Lunch Boxes', quantity, new Date().toISOString().split('T')[0], '12:00 PM', source, status, 'Medium', total, isScam, sentiment], () => {
     res.json({ success: true, orderId, status });
   });
 });

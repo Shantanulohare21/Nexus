@@ -6,7 +6,7 @@ const db = new sqlite3.Database('./ordersync.db', (err) => {
   } else {
     console.log('Connected to the SQLite database.');
     
-    // Create Orders Table
+    // Create Orders Table (updated with sentiment)
     db.run(`CREATE TABLE IF NOT EXISTS orders (
       id TEXT PRIMARY KEY,
       customerName TEXT,
@@ -18,11 +18,16 @@ const db = new sqlite3.Database('./ordersync.db', (err) => {
       status TEXT,
       priority TEXT,
       total REAL,
-      isScam INTEGER DEFAULT 0
+      isScam INTEGER DEFAULT 0,
+      sentiment TEXT DEFAULT 'Neutral'
     )`, (err) => {
       if (err) {
         console.error("Error creating table", err);
       } else {
+        // Migration for existing tables
+        db.run("ALTER TABLE orders ADD COLUMN sentiment TEXT DEFAULT 'Neutral'", (err) => {
+          // Ignore error if column already exists
+        });
         // Seeds some dummy data if empty
         db.get("SELECT COUNT(*) AS count FROM orders", (err, row) => {
           if (row.count === 0) {

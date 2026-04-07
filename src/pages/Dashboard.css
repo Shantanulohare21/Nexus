@@ -157,6 +157,20 @@
 .priority-tag.high { color: #ef4444; background: rgba(239, 68, 68, 0.1); }
 .priority-tag.medium { color: var(--text-muted); background: var(--bg-primary); }
 
+.sentiment-tag {
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 0.2rem 0.6rem;
+  border-radius: 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+.sentiment-tag.urgent { color: #ffffff; background: #ef4444; border: 1px solid #dc2626; box-shadow: 0 0 10px rgba(239, 68, 68, 0.4); }
+.sentiment-tag.negative { color: #ef4444; background: rgba(239, 68, 68, 0.1); }
+.sentiment-tag.positive { color: #10b981; background: rgba(16, 185, 129, 0.1); }
+.sentiment-tag.neutral { color: var(--text-muted); background: var(--bg-primary); }
+
 .amount {
   font-weight: 700;
   color: var(--text-primary);
