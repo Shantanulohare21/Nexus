@@ -10,7 +10,113 @@ const mockupCustomers = [
 
 const Insights = () => {
   const [searchTerm, setSearchTerm] = useState('');
+  const [stats, setStats] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  const fetchStats = async () => {
+    try {
+      const res = await fetch('http://localhost:3001/api/stats');
+      const data = await res.json();
+      setStats(data);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchStats();
+    const interval = setInterval(fetchStats, 10000); // Refresh stats every 10s
+    return () => clearInterval(interval);
+  }, []);
+
   const filtered = mockupCustomers.filter(c => c.name.toLowerCase().includes(searchTerm.toLowerCase()));
+
+  // SVG Chart Components
+  const RevenueChart = ({ data }) => {
+    if (!data || data.length === 0) return <div className="chart-empty">Insufficient data for revenue trend.</div>;
+    
+    const maxVal = Math.max(...data.map(d => d.value)) || 100;
+    const width = 600;
+    const height = 200;
+    const padding = 40;
+    
+    const points = data.map((d, i) => {
+      const x = padding + (i * (width - 2 * padding) / (data.length - 1));
+      const y = height - padding - (d.value / maxVal * (height - 2 * padding));
+      return { x, y };
+    });
+
+    const pathD = points.reduce((acc, p, i) => i === 0 ? `M ${p.x} ${p.y}` : `${acc} L ${p.x} ${p.y}`, '');
+
+    return (
+      <div className="chart-wrapper">
+        <h4>7-Day Revenue Trend</h4>
+        <svg viewBox={`0 0 ${width} ${height}`} className="revenue-svg">
+          <g className="grid-lines">
+            {[0, 1, 2, 3].map(i => {
+              const y = padding + i * (height - 2 * padding) / 3;
+              return <line key={i} x1={padding} y1={y} x2={width - padding} y2={y} stroke="var(--border-color)" strokeDasharray="4 4" />;
+            })}
+          </g>
+          <path d={pathD} fill="none" stroke="var(--accent-primary)" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+          {points.map((p, i) => (
+            <circle key={i} cx={p.x} cy={p.y} r="5" fill="var(--accent-primary)" stroke="var(--bg-secondary)" strokeWidth="2">
+               <title>{data[i].label}: ${data[i].value}</title>
+            </circle>
+          ))}
+          <text x={width/2} y={height - 5} fill="var(--text-muted)" fontSize="10" textAnchor="middle">Last 7 Trading Days</text>
+        </svg>
+      </div>
+    );
+  };
+
+  const SourceChart = ({ data }) => {
+    if (!data) return null;
+    const total = data.reduce((acc, d) => acc + d.value, 0) || 1;
+    let currentAngle = 0;
+    const colors = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'];
+
+    return (
+      <div className="chart-wrapper donut">
+        <h4>Order Source Volume</h4>
+        <div className="donut-content">
+          <svg viewBox="0 0 100 100" className="donut-svg">
+            {data.map((d, i) => {
+              const sliceAngle = (d.value / total) * 360;
+              const x1 = 50 + 40 * Math.cos(Math.PI * currentAngle / 180);
+              const y1 = 50 + 40 * Math.sin(Math.PI * currentAngle / 180);
+              currentAngle += sliceAngle;
+              const x2 = 50 + 40 * Math.cos(Math.PI * currentAngle / 180);
+              const y2 = 50 + 40 * Math.sin(Math.PI * currentAngle / 180);
+              const largeArcFlag = sliceAngle > 180 ? 1 : 0;
+              
+              return (
+                <path
+                  key={i}
+                  d={`M 50 50 L ${x1} ${y1} A 40 40 0 ${largeArcFlag} 1 ${x2} ${y2} Z`}
+                  fill={colors[i % colors.length]}
+                  stroke="var(--bg-primary)"
+                  strokeWidth="1"
+                />
+              );
+            })}
+            <circle cx="50" cy="50" r="25" fill="var(--bg-secondary)" />
+            <text x="50" y="55" fontSize="8" fontWeight="700" fill="var(--text-primary)" textAnchor="middle">{total}</text>
+          </svg>
+          <div className="chart-legend">
+            {data.map((d, i) => (
+              <div key={i} className="legend-item">
+                <span className="dot" style={{ backgroundColor: colors[i % colors.length] }}></span>
+                <span className="label">{d.label}: {d.value}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  };
 
   return (
     <div className="insights-container">
@@ -54,6 +160,15 @@ const Insights = () => {
             <p>Has not ordered in 1 week. Average frequency is every 3 days. Recommend sending 10% discount.</p>
           </div>
         </div>
+      </div>
+
+      <div className="analytics-row">
+         <div className="analytics-card glass-panel">
+            <RevenueChart data={stats?.revenueSeries} />
+         </div>
+         <div className="analytics-card glass-panel">
+            <SourceChart data={stats?.sourceDistribution} />
+         </div>
       </div>
 
       <h2 style={{ marginTop: '1rem', fontSize: '1.25rem' }}>Client Directory</h2>

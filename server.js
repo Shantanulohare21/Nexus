@@ -109,8 +109,9 @@ const pollGmail = async () => {
       if (total > 500) status = 'Awaiting Approval';
       if (isScam) status = 'SCAM ALERT';
 
-      const sql = `INSERT INTO orders VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`;
-      db.run(sql, [orderId, from, product, quantity, new Date().toISOString().split('T')[0], time, 'Email', status, priority, total, isScam, sentiment]);
+      db.run(sql, [orderId, from, product, quantity, new Date().toISOString().split('T')[0], time, 'Email', status, priority, total, isScam, sentiment], () => {
+        simulateWhatsAppAlert({ id: orderId, customerName: from, priority, sentiment });
+      });
       console.log(`[GMAIL] Auto-Captured Order: ${orderId} | Sentiment: ${sentiment}`);
     }
     connection.end();
@@ -146,6 +147,7 @@ app.post('/api/orders', (req, res) => {
   const sentiment = o.sentiment || detectSentiment(o.item);
   const sql = `INSERT INTO orders (id, customerName, item, quantity, date, time, source, status, priority, total, isScam, sentiment) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`;
   db.run(sql, [o.id, o.customerName, o.item, o.quantity, o.date, o.time, o.source, status, priority, total, isScam, sentiment], (err) => {
+    simulateWhatsAppAlert({ id: o.id, customerName: o.customerName, priority, sentiment });
     res.json({ id: o.id, isScam: isScam === 1, status, priority, sentiment });
   });
 });
@@ -183,6 +185,7 @@ app.post('/api/twilio/whatsapp', (req, res) => {
       : `✅ OrderSync: Confirmed! ${orderId}. Tone: ${sentiment}`;
 
   db.run(`INSERT INTO orders VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`, [orderId, profileName, item, quantity, new Date().toISOString().split('T')[0], time, 'WhatsApp', status, priority, total, isScam, sentiment], () => {
+    simulateWhatsAppAlert({ id: orderId, customerName: profileName, priority, sentiment });
     res.type('text/xml').send(`<Response><Message>${replyText}</Message></Response>`);
   });
 });
@@ -199,7 +202,47 @@ app.post('/api/webhooks/:source', (req, res) => {
   const sentiment = detectSentiment(payload.item || '');
   const orderId = `EXT-${Math.floor(Math.random() * 9000) + 1000}`;
   db.run(`INSERT INTO orders VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`, [orderId, payload.customerName || 'External', payload.item || 'Lunch Boxes', quantity, new Date().toISOString().split('T')[0], '12:00 PM', source, status, 'Medium', total, isScam, sentiment], () => {
+    simulateWhatsAppAlert({ id: orderId, customerName: payload.customerName, priority: 'Medium', sentiment });
     res.json({ success: true, orderId, status });
+  });
+});
+
+const simulateWhatsAppAlert = (order) => {
+  if (order.priority === 'High' || order.sentiment === 'Urgent') {
+    console.log(`[WHATSAPP-AI] 📱 Automated Alert Sent to Warehouse: New ${order.priority} Order ${order.id} from ${order.customerName}.`);
+  }
+};
+
+app.get('/api/stats', (req, res) => {
+  const statsSql = `
+    SELECT 
+      date, 
+      SUM(total) as revenue, 
+      COUNT(*) as count,
+      source
+    FROM orders 
+    GROUP BY date, source
+    ORDER BY date ASC
+  `;
+  
+  db.all(statsSql, [], (err, rows) => {
+    if (err) return res.status(500).json({ error: err.message });
+    
+    // Aggregate for the frontend chart (simple 7-day view)
+    const dailyRev = {};
+    const sources = { Email: 0, WhatsApp: 0, Manual: 0, Website: 0, EXTERNAL: 0 };
+    
+    rows.forEach(r => {
+      dailyRev[r.date] = (dailyRev[r.date] || 0) + r.revenue;
+      sources[r.source] = (sources[r.source] || 0) + r.count;
+    });
+
+    res.json({
+      revenueSeries: Object.entries(dailyRev).map(([label, value]) => ({ label, value })).slice(-7),
+      sourceDistribution: Object.entries(sources).map(([label, value]) => ({ label, value })),
+      totalRevenue: rows.reduce((sum, r) => sum + r.revenue, 0),
+      orderCount: rows.reduce((sum, r) => sum + r.count, 0)
+    });
   });
 });
 

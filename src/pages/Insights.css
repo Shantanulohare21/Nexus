@@ -203,3 +203,80 @@
   margin: 0;
   line-height: 1.4;
 }
+
+/* Analytics & Charts */
+.analytics-row {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+.chart-wrapper {
+  padding: 1rem;
+}
+
+.chart-wrapper h4 {
+  font-size: 0.9rem;
+  margin-bottom: 1.5rem;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  font-weight: 700;
+}
+
+.revenue-svg {
+  width: 100%;
+  height: auto;
+  overflow: visible;
+}
+
+.donut-content {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 2rem;
+  padding: 1rem 0;
+}
+
+.donut-svg {
+  width: 160px;
+  height: 160px;
+  filter: drop-shadow(0 4px 10px rgba(0,0,0,0.1));
+}
+
+.chart-legend {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}
+
+.legend-item .dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  box-shadow: 0 0 5px rgba(0,0,0,0.1);
+}
+
+.chart-empty {
+  padding: 3rem;
+  text-align: center;
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+@media (max-width: 1024px) {
+  .analytics-row { grid-template-columns: 1fr; }
+  .forecast-widgets { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 600px) {
+  .donut-content { flex-direction: column; text-align: center; }
+}
