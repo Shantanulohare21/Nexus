@@ -1,6 +1,6 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, PlusCircle, Clock, Users, FileText, ChefHat, Server, Inbox as InboxIcon, Truck } from 'lucide-react';
+import { LayoutDashboard, PlusCircle, Clock, Users, FileText, ChefHat, Server, Inbox as InboxIcon, Truck, Box } from 'lucide-react';
 import './Sidebar.css';
 
 const Sidebar = () => {
@@ -10,6 +10,7 @@ const Sidebar = () => {
     { path: '/add', label: 'Add Order', icon: PlusCircle },
     { path: '/kitchen', label: 'Kitchen (KDS)', icon: ChefHat },
     { path: '/logistics', label: 'Logistics AI', icon: Truck },
+    { path: '/inventory', label: 'Inventory AI', icon: Box },
     { path: '/timeline', label: 'Tracking', icon: Clock },
     { path: '/insights', label: 'Insights', icon: Users },
     { path: '/invoice', label: 'Invoice', icon: FileText },

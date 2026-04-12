@@ -285,6 +285,12 @@
 
 .mt-4 { margin-top: 2rem; }
 
+.button-group-row {
+  display: flex;
+  gap: 1rem;
+  margin-top: 1.5rem;
+}
+
 .email-reply-mock {
   margin-top: 2rem;
   padding: 1.5rem;

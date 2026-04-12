@@ -15,6 +15,7 @@ import Invoice from './pages/Invoice';
 import Kitchen from './pages/Kitchen';
 import Simulator from './pages/Simulator';
 import Inbox from './pages/Inbox';
+import Inventory from './pages/Inventory';
 
 function App() {
   return (
@@ -30,6 +31,7 @@ function App() {
             <Route path="timeline" element={<MapTracking />} />
             <Route path="insights" element={<Insights />} />
             <Route path="invoice" element={<Invoice />} />
+            <Route path="inventory" element={<Inventory />} />
             <Route path="simulator" element={<Simulator />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Route>

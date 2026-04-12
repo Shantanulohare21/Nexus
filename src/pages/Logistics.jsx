@@ -1,26 +1,23 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { useOrders } from '../context/OrderContext';
 import { Truck, MapPin, Navigation, Info, Briefcase, Zap, ChevronRight } from 'lucide-react';
 import './Logistics.css';
 
 const Logistics = () => {
   const { orders } = useOrders();
-  const [batches, setBatches] = useState([]);
   
   // Logic: Group orders into "Batches" by mock geographical zones
-  useEffect(() => {
+  const batches = React.useMemo(() => {
     const pendingOrders = orders.filter(o => o.status === 'Preparing' || o.status === 'Pending' || o.status === 'Awaiting Approval');
     
     // Simple mock logic for demonstration
     const zoneA = pendingOrders.filter((_, i) => i % 2 === 0);
     const zoneB = pendingOrders.filter((_, i) => i % 2 !== 0);
     
-    const newBatches = [
+    return [
       { id: 'Batch-North-1', orders: zoneA, zone: 'North Sector', efficiency: '92%', driver: 'Sarah Connor', status: 'Routing' },
       { id: 'Batch-Downtown-2', orders: zoneB, zone: 'Central Business', efficiency: '88%', driver: 'John Wick', status: 'Ready' }
     ].filter(b => b.orders.length > 0);
-    
-    setBatches(newBatches);
   }, [orders]);
 
   return (

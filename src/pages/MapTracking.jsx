@@ -9,17 +9,17 @@ const MapTracking = () => {
   const location = useLocation();
   const queryParams = new URLSearchParams(location.search);
   const orderId = queryParams.get('id');
-  const [order, setOrder] = useState(null);
+
+  const order = React.useMemo(() => {
+    if (orderId) {
+      return orders.find(o => o.id === orderId) || orders[0];
+    }
+    return orders[0];
+  }, [orderId, orders]);
+
   const [progress, setProgress] = useState(0);
 
-  useEffect(() => {
-    if (orderId) {
-      const found = orders.find(o => o.id === orderId);
-      setOrder(found);
-    } else {
-      setOrder(orders[0]); // Default to first order for demo
-    }
-  }, [orderId, orders]);
+
 
   useEffect(() => {
     const timer = setInterval(() => {

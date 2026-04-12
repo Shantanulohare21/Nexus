@@ -12,6 +12,25 @@ Built for the Future of Automated Commerce.
 
 ---
 
+## 🖼️ Visual Product Showcase
+
+| **Command Center (Dashboard)** | **AI Logistics & Route Opt** |
+|:---:|:---:|
+| ![Dashboard](./screenshots/dashboard.png) | ![Logistics](./screenshots/logistics.png) |
+| *Real-time order monitoring with sentiment analysis.* | *Intelligent batching and delivery pathing.* |
+
+| **Smart Order Capture** | **Kitchen Display System (KDS)** |
+|:---:|:---:|
+| ![Add Order](./screenshots/add_order.png) | ![Kitchen](./screenshots/kitchen.png) |
+| *Omni-channel order entry with AI support.* | *Real-time preparation management for chefs.* |
+
+| **Omni-Channel AI Inbox** |
+|:---:|
+| ![Inbox](./screenshots/inbox.png) |
+| *Automated extraction from WhatsApp & Gmail.* |
+
+---
+
 ## 🚀 The Vision
 In today's fast-paced digital economy, businesses lose billions due to fragmented communication, manual data entry errors, and logistics opacity. **Nexus - OrderSync AI** bridges this gap by centralizing orders from **Email, WhatsApp, and Webhooks** into a single, AI-verified command center.
 

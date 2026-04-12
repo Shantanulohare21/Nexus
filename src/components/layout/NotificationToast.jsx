@@ -1,9 +1,21 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Bell, X, Zap, AlertTriangle } from 'lucide-react';
 import './NotificationToast.css';
 
 const NotificationToast = () => {
   const [notifications, setNotifications] = useState([]);
+
+  const removeToast = useCallback((id) => {
+    setNotifications(prev => prev.filter(n => n.id !== id));
+  }, []);
+
+  const addToast = useCallback((title, message, type) => {
+    const id = Date.now();
+    setNotifications(prev => [...prev, { id, title, message, type }]);
+    setTimeout(() => {
+      removeToast(id);
+    }, 5000);
+  }, [removeToast]);
 
   useEffect(() => {
     const handleScam = (e) => addToast('SCAM ALERT', `Potential fraud detected: ${e.detail.id}`, 'scam');
@@ -16,19 +28,7 @@ const NotificationToast = () => {
       window.removeEventListener('scam-alert', handleScam);
       window.removeEventListener('priority-order', handlePriority);
     };
-  }, []);
-
-  const addToast = (title, message, type) => {
-    const id = Date.now();
-    setNotifications(prev => [...prev, { id, title, message, type }]);
-    setTimeout(() => {
-      removeToast(id);
-    }, 5000);
-  };
-
-  const removeToast = (id) => {
-    setNotifications(prev => prev.filter(n => n.id !== id));
-  };
+  }, [addToast]);
 
   return (
     <div className="toast-container">

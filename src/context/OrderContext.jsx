@@ -1,27 +1,68 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 
 const OrderContext = createContext();
 const API_URL = 'http://localhost:3001/api';
 
 export const OrderProvider = ({ children }) => {
   const [orders, setOrders] = useState([]);
+  const [notifications, setNotifications] = useState([]);
   const [theme, setTheme] = useState('light');
 
-  const fetchOrders = async () => {
+  const fetchOrders = useCallback(async (retries = 3) => {
     try {
       const res = await fetch(`${API_URL}/orders`);
+      if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
       const data = await res.json();
       setOrders(data);
     } catch (err) {
       console.error("Failed to fetch orders via API", err);
+      if (retries > 0) {
+        console.log(`Retrying fetch orders... (${retries} left)`);
+        setTimeout(() => fetchOrders(retries - 1), 2000);
+      }
     }
+  }, []);
+
+  const fetchNotifications = useCallback(async (retries = 3) => {
+    try {
+      const res = await fetch(`${API_URL}/notifications`);
+      if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+      const data = await res.json();
+      setNotifications(data);
+    } catch (err) {
+      console.error("Failed to fetch notifications", err);
+      if (retries > 0) {
+        console.log(`Retrying fetch notifications... (${retries} left)`);
+        setTimeout(() => fetchNotifications(retries - 1), 2000);
+      }
+    }
+  }, []);
+
+  const dismissNotification = async (id) => {
+    try {
+      await fetch(`${API_URL}/notifications/${id}/dismiss`, { method: 'POST' });
+      fetchNotifications();
+    } catch (err) {
+      console.error("Failed to dismiss notification", err);
+    }
+  };
+
+  const generateEstimate = async (orderData) => {
+    // Force status to Awaiting Approval for estimates
+    const estimate = { ...orderData, status: 'Awaiting Approval' };
+    await addOrder(estimate);
+    return { success: true };
   };
 
   useEffect(() => {
     fetchOrders();
-    const interval = setInterval(fetchOrders, 5000);
+    fetchNotifications();
+    const interval = setInterval(() => {
+      fetchOrders();
+      fetchNotifications();
+    }, 5000);
     return () => clearInterval(interval);
-  }, []);
+  }, [fetchOrders, fetchNotifications]);
 
   const toggleTheme = () => {
     const newTheme = theme === 'light' ? 'dark' : 'light';
@@ -78,13 +119,49 @@ export const OrderProvider = ({ children }) => {
     }
   };
 
+  const sendInvoice = async (id) => {
+    try {
+      // Simulate API call to send invoice
+      await fetch(`${API_URL}/orders/${id}/status`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'Invoiced' })
+      });
+      fetchOrders();
+      return { success: true, message: 'Invoice sent successfully' };
+    } catch (err) {
+      console.error("Failed to send invoice", err);
+      return { success: false, error: err.message };
+    }
+  };
+
+  const syncToZoho = async (id) => {
+    try {
+      const res = await fetch(`${API_URL}/zoho/sync`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ orderId: id })
+      });
+      const data = await res.json();
+      return data;
+    } catch (err) {
+      console.error("Zoho sync failed", err);
+      return { success: false, error: err.message };
+    }
+  };
+
   return (
     <OrderContext.Provider
       value={{
         orders,
+        notifications,
         addOrder,
         approveOrder,
         updateOrderStatus,
+        sendInvoice,
+        syncToZoho,
+        dismissNotification,
+        generateEstimate,
         theme,
         toggleTheme,
       }}

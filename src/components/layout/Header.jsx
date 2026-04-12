@@ -3,6 +3,8 @@ import { Moon, Sun, Search, Bell } from 'lucide-react';
 import { useOrders } from '../../context/OrderContext';
 import './Header.css';
 
+import NotificationCenter from '../NotificationCenter';
+
 const Header = () => {
   const { theme, toggleTheme } = useOrders();
 
@@ -19,10 +21,7 @@ const Header = () => {
       </div>
       
       <div className="header-actions">
-        <button className="action-btn">
-          <Bell size={20} />
-          <span className="badge">3</span>
-        </button>
+        <NotificationCenter />
         
         <button className="theme-toggle" onClick={toggleTheme}>
           {theme === 'light' ? <Moon size={20} /> : <Sun size={20} />}

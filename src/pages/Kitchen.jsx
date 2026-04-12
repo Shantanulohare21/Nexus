@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useOrders } from '../context/OrderContext';
 import { Mic, CheckCircle, ChefHat, LayoutPanelLeft, ListChecks, Zap } from 'lucide-react';
 import './Kitchen.css';
@@ -9,6 +9,27 @@ const Kitchen = () => {
   const [isListening, setIsListening] = useState(false);
   const [log, setLog] = useState([]);
   const recognitionRef = useRef(null);
+
+  const addToLog = useCallback((msg, type) => {
+    setLog(prev => [{ text: msg, type, id: Date.now() }, ...prev].slice(0, 5));
+  }, []);
+
+  const handleVoiceCommand = useCallback((command) => {
+    addToLog(`Captured: "${command}"`, 'user');
+    const idMatch = command.match(/\d{4}/); 
+    if (idMatch) {
+      const orderId = orders.find(o => o.id.includes(idMatch[0]))?.id;
+      if (orderId) {
+        if (command.includes('ready') || command.includes('preparing')) {
+          updateOrderStatus(orderId, 'Preparing');
+          addToLog(`Order ${idMatch[0]} set to Preparing.`, 'success');
+        } else if (command.includes('done') || command.includes('deliver')) {
+          updateOrderStatus(orderId, 'Out for Delivery');
+          addToLog(`Order ${idMatch[0]} completed.`, 'success');
+        }
+      }
+    }
+  }, [orders, updateOrderStatus, addToLog]);
 
   const pendingOrders = orders.filter(o => o.status === 'Pending' || o.status === 'Awaiting Approval');
   const preparingOrders = orders.filter(o => o.status === 'Preparing');
@@ -66,7 +87,7 @@ const Kitchen = () => {
     return () => {
       if (recognitionRef.current) recognitionRef.current.stop();
     };
-  }, [isListening, orders]);
+  }, [isListening, handleVoiceCommand]);
 
   const toggleListen = () => {
     if (isListening) {
@@ -79,26 +100,7 @@ const Kitchen = () => {
     }
   };
 
-  const handleVoiceCommand = (command) => {
-    addToLog(`Captured: "${command}"`, 'user');
-    const idMatch = command.match(/\d{4}/); 
-    if (idMatch) {
-      const orderId = orders.find(o => o.id.includes(idMatch[0]))?.id;
-      if (orderId) {
-        if (command.includes('ready') || command.includes('preparing')) {
-          updateOrderStatus(orderId, 'Preparing');
-          addToLog(`Order ${idMatch[0]} set to Preparing.`, 'success');
-        } else if (command.includes('done') || command.includes('deliver')) {
-          updateOrderStatus(orderId, 'Out for Delivery');
-          addToLog(`Order ${idMatch[0]} completed.`, 'success');
-        }
-      }
-    }
-  };
 
-  const addToLog = (msg, type) => {
-    setLog(prev => [{ text: msg, type, id: Date.now() }, ...prev].slice(0, 5));
-  };
 
   return (
     <div className="kitchen-container dark-mode">

@@ -1,22 +1,23 @@
 import React, { useState, useEffect } from 'react';
 import { useOrders } from '../context/OrderContext';
 import { useLocation } from 'react-router-dom';
-import { Download, Search, Printer, Share2, Database, Check } from 'lucide-react';
+import { Download, Search, Printer, Share2, Database, Check, Send } from 'lucide-react';
 import './Invoice.css';
 
 const Invoice = () => {
-  const { orders } = useOrders();
+  const { orders, sendInvoice, syncToZoho } = useOrders();
   const location = useLocation();
   const queryParams = new URLSearchParams(location.search);
   const orderId = queryParams.get('id');
   
   const [searchTerm, setSearchTerm] = useState(orderId || '');
   const [isSyncing, setIsSyncing] = useState(false);
-  const [syncStatus, setSyncStatus] = useState(null); // 'success' | null
+  const [isSending, setIsSending] = useState(false);
+  const [statusMsg, setStatusMsg] = useState(null); // { type, text }
 
   useEffect(() => {
-    if (orderId) setSearchTerm(orderId);
-  }, [orderId]);
+    if (orderId && orderId !== searchTerm) setSearchTerm(orderId);
+  }, [orderId, searchTerm]);
   
   const selectedOrder = searchTerm 
     ? orders.find(o => o.id.toLowerCase() === searchTerm.toLowerCase()) 
@@ -26,15 +27,26 @@ const Invoice = () => {
     window.print();
   };
 
-  const handleZohoSync = () => {
+  const handleZohoSync = async () => {
+    if (!selectedOrder) return;
     setIsSyncing(true);
-    setSyncStatus(null);
-    // Simulate Zoho API call
-    setTimeout(() => {
-      setIsSyncing(false);
-      setSyncStatus('success');
-      setTimeout(() => setSyncStatus(null), 3000);
-    }, 2000);
+    const result = await syncToZoho(selectedOrder.id);
+    setIsSyncing(false);
+    if (result.success) {
+      setStatusMsg({ type: 'success', text: 'Synced to Zoho CRM' });
+      setTimeout(() => setStatusMsg(null), 3000);
+    }
+  };
+
+  const handleSendInvoice = async () => {
+    if (!selectedOrder) return;
+    setIsSending(true);
+    const result = await sendInvoice(selectedOrder.id);
+    setIsSending(false);
+    if (result.success) {
+      setStatusMsg({ type: 'success', text: 'Invoice Sent to Client' });
+      setTimeout(() => setStatusMsg(null), 3000);
+    }
   };
 
   return (
@@ -57,9 +69,14 @@ const Invoice = () => {
             />
           </div>
           
-          <button className={`btn-zoho ${syncStatus === 'success' ? 'success' : ''}`} onClick={handleZohoSync} disabled={isSyncing}>
-            {isSyncing ? <div className="spinner-small" /> : syncStatus === 'success' ? <Check size={18}/> : <Database size={18} />}
-            {isSyncing ? 'Syncing...' : syncStatus === 'success' ? 'Zoho Updated' : 'Push to Zoho CRM'}
+          <button className={`btn-zoho ${statusMsg?.text.includes('Zoho') ? 'success' : ''}`} onClick={handleZohoSync} disabled={isSyncing}>
+            {isSyncing ? <div className="spinner-small" /> : statusMsg?.text.includes('Zoho') ? <Check size={18}/> : <Database size={18} />}
+            {isSyncing ? 'Syncing...' : statusMsg?.text.includes('Zoho') ? 'Synced' : 'Sync Zoho'}
+          </button>
+
+          <button className={`btn-primary ${statusMsg?.text.includes('Sent') ? 'success' : ''}`} onClick={handleSendInvoice} disabled={isSending}>
+            {isSending ? <div className="spinner-small" /> : statusMsg?.text.includes('Sent') ? <Check size={18}/> : <Send size={18} />}
+            {isSending ? 'Sending...' : statusMsg?.text.includes('Sent') ? 'Invoice Sent' : 'Send Invoice'}
           </button>
 
           <button className="btn-secondary" onClick={handlePrint} title="Print Invoice">
@@ -86,10 +103,10 @@ const Invoice = () => {
               <h1>INVOICE</h1>
               <p><strong>Invoice ID:</strong> #INV-{selectedOrder.id.split('-')[1] || '0000'}</p>
               <p><strong>Date:</strong> {selectedOrder.date}</p>
-              <div className={`invoice-badge ${selectedOrder.status === 'Delivered' ? 'paid' : 'unpaid'}`}>
-                {selectedOrder.status === 'Delivered' ? 'FULLY PAID' : 'PAYMENT DUE'}
+              <div className={`invoice-badge ${selectedOrder.status === 'Delivered' || selectedOrder.status === 'Invoiced' ? 'paid' : 'unpaid'}`}>
+                {selectedOrder.status === 'Delivered' ? 'FULLY PAID' : selectedOrder.status === 'Invoiced' ? 'INVOICED' : 'PAYMENT DUE'}
               </div>
-              {syncStatus === 'success' && <div className="zoho-sync-tag"><Check size={12}/> Zoho Synced</div>}
+              {statusMsg?.text.includes('Zoho') && <div className="zoho-sync-tag"><Check size={12}/> Zoho Synced</div>}
             </div>
           </div>
 

@@ -19,3 +19,9 @@ ngrok.log
 # OS files
 .DS_Store
 Thumbs.db
+
+# Documentation and Verification
+*.png
+*.txt
+scratch/
+lost-and-found-nexus/

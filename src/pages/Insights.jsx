@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Search, TrendingUp, Star, Phone, Mail, AlertTriangle, Zap } from 'lucide-react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { Search, TrendingUp, Star, Phone, Mail, AlertTriangle, Zap, TrendingDown } from 'lucide-react';
 import './Insights.css';
 
 const mockupCustomers = [
@@ -8,115 +8,143 @@ const mockupCustomers = [
   { id: 'CUST-003', name: 'Acme Corp', totalOrders: 104, revenue: '$62,150', lastOrder: 'Today', phone: '+1 555-0888', email: 'procurement@acme.com', favorite: 'Executive Lunch Boxes' },
 ];
 
+// SVG Chart Components
+const RevenueChart = ({ data }) => {
+  if (!data || data.length === 0) return <div className="chart-empty">Insufficient data for revenue trend.</div>;
+  
+  const maxVal = Math.max(...data.map(d => d.value)) || 100;
+  const width = 600;
+  const height = 200;
+  const padding = 40;
+  
+  const points = data.map((d, i) => {
+    const x = padding + (i * (width - 2 * padding) / (data.length - 1));
+    const y = height - padding - (d.value / maxVal * (height - 2 * padding));
+    return { x, y };
+  });
+
+  const pathD = points.reduce((acc, p, i) => i === 0 ? `M ${p.x} ${p.y}` : `${acc} L ${p.x} ${p.y}`, '');
+
+  return (
+    <div className="chart-wrapper">
+      <h4>7-Day Revenue Trend</h4>
+      <svg viewBox={`0 0 ${width} ${height}`} className="revenue-svg">
+        <g className="grid-lines">
+          {[0, 1, 2, 3].map(i => {
+            const y = padding + i * (height - 2 * padding) / 3;
+            return <line key={i} x1={padding} y1={y} x2={width - padding} y2={y} stroke="var(--border-color)" strokeDasharray="4 4" />;
+          })}
+        </g>
+        <path d={pathD} fill="none" stroke="var(--accent-primary)" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+        {points.map((p, i) => (
+          <circle key={i} cx={p.x} cy={p.y} r="5" fill="var(--accent-primary)" stroke="var(--bg-secondary)" strokeWidth="2">
+             <title>{data[i].label}: ${data[i].value}</title>
+          </circle>
+        ))}
+        <text x={width/2} y={height - 5} fill="var(--text-muted)" fontSize="10" textAnchor="middle">Last 7 Trading Days</text>
+      </svg>
+    </div>
+  );
+};
+
+const SourceChart = ({ data }) => {
+  if (!data) return null;
+  const total = data.reduce((acc, d) => acc + d.value, 0) || 1;
+  let currentAngle = 0;
+  const colors = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'];
+
+  return (
+    <div className="chart-wrapper donut">
+      <h4>Order Source Volume</h4>
+      <div className="donut-content">
+        <svg viewBox="0 0 100 100" className="donut-svg">
+          {data.map((d, i) => {
+            const sliceAngle = (d.value / total) * 360;
+            const x1 = 50 + 40 * Math.cos(Math.PI * currentAngle / 180);
+            const y1 = 50 + 40 * Math.sin(Math.PI * currentAngle / 180);
+            currentAngle += sliceAngle;
+            const x2 = 50 + 40 * Math.cos(Math.PI * currentAngle / 180);
+            const y2 = 50 + 40 * Math.sin(Math.PI * currentAngle / 180);
+            const largeArcFlag = sliceAngle > 180 ? 1 : 0;
+            
+            return (
+              <path
+                key={i}
+                d={`M 50 50 L ${x1} ${y1} A 40 40 0 ${largeArcFlag} 1 ${x2} ${y2} Z`}
+                fill={colors[i % colors.length]}
+                stroke="var(--bg-primary)"
+                strokeWidth="1"
+              />
+            );
+          })}
+          <circle cx="50" cy="50" r="25" fill="var(--bg-secondary)" />
+          <text x="50" y="55" fontSize="8" fontWeight="700" fill="var(--text-primary)" textAnchor="middle">{total}</text>
+        </svg>
+        <div className="chart-legend">
+          {data.map((d, i) => (
+            <div key={i} className="legend-item">
+              <span className="dot" style={{ backgroundColor: colors[i % colors.length] }}></span>
+              <span className="label">{d.label}: {d.value}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const Insights = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [stats, setStats] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [churnRisks, setChurnRisks] = useState([]);
+  const [marketingLog, setMarketingLog] = useState([]);
 
-  const fetchStats = async () => {
+  const fetchStats = useCallback(async () => {
     try {
       const res = await fetch('http://localhost:3001/api/stats');
       const data = await res.json();
       setStats(data);
     } catch (err) {
       console.error(err);
-    } finally {
-      setLoading(false);
+    }
+  }, []);
+
+  const fetchChurn = useCallback(async () => {
+    try {
+      const res = await fetch('http://localhost:3001/api/churn-risks');
+      const data = await res.json();
+      setChurnRisks(data);
+    } catch (err) {
+      console.error(err);
+    }
+  }, []);
+
+  const sendOffer = async (customerName, offer) => {
+    try {
+      await fetch('http://localhost:3001/api/marketing/send-offer', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ customerName, offer })
+      });
+      setMarketingLog(prev => [`🚀 Discount sent to ${customerName}: "${offer}"`, ...prev].slice(0, 3));
+    } catch (err) {
+      console.error(err);
     }
   };
 
   useEffect(() => {
     fetchStats();
-    const interval = setInterval(fetchStats, 10000); // Refresh stats every 10s
+    fetchChurn();
+    const interval = setInterval(() => {
+      fetchStats();
+      fetchChurn();
+    }, 15000);
     return () => clearInterval(interval);
-  }, []);
+  }, [fetchStats, fetchChurn]);
 
   const filtered = mockupCustomers.filter(c => c.name.toLowerCase().includes(searchTerm.toLowerCase()));
 
-  // SVG Chart Components
-  const RevenueChart = ({ data }) => {
-    if (!data || data.length === 0) return <div className="chart-empty">Insufficient data for revenue trend.</div>;
-    
-    const maxVal = Math.max(...data.map(d => d.value)) || 100;
-    const width = 600;
-    const height = 200;
-    const padding = 40;
-    
-    const points = data.map((d, i) => {
-      const x = padding + (i * (width - 2 * padding) / (data.length - 1));
-      const y = height - padding - (d.value / maxVal * (height - 2 * padding));
-      return { x, y };
-    });
 
-    const pathD = points.reduce((acc, p, i) => i === 0 ? `M ${p.x} ${p.y}` : `${acc} L ${p.x} ${p.y}`, '');
-
-    return (
-      <div className="chart-wrapper">
-        <h4>7-Day Revenue Trend</h4>
-        <svg viewBox={`0 0 ${width} ${height}`} className="revenue-svg">
-          <g className="grid-lines">
-            {[0, 1, 2, 3].map(i => {
-              const y = padding + i * (height - 2 * padding) / 3;
-              return <line key={i} x1={padding} y1={y} x2={width - padding} y2={y} stroke="var(--border-color)" strokeDasharray="4 4" />;
-            })}
-          </g>
-          <path d={pathD} fill="none" stroke="var(--accent-primary)" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
-          {points.map((p, i) => (
-            <circle key={i} cx={p.x} cy={p.y} r="5" fill="var(--accent-primary)" stroke="var(--bg-secondary)" strokeWidth="2">
-               <title>{data[i].label}: ${data[i].value}</title>
-            </circle>
-          ))}
-          <text x={width/2} y={height - 5} fill="var(--text-muted)" fontSize="10" textAnchor="middle">Last 7 Trading Days</text>
-        </svg>
-      </div>
-    );
-  };
-
-  const SourceChart = ({ data }) => {
-    if (!data) return null;
-    const total = data.reduce((acc, d) => acc + d.value, 0) || 1;
-    let currentAngle = 0;
-    const colors = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'];
-
-    return (
-      <div className="chart-wrapper donut">
-        <h4>Order Source Volume</h4>
-        <div className="donut-content">
-          <svg viewBox="0 0 100 100" className="donut-svg">
-            {data.map((d, i) => {
-              const sliceAngle = (d.value / total) * 360;
-              const x1 = 50 + 40 * Math.cos(Math.PI * currentAngle / 180);
-              const y1 = 50 + 40 * Math.sin(Math.PI * currentAngle / 180);
-              currentAngle += sliceAngle;
-              const x2 = 50 + 40 * Math.cos(Math.PI * currentAngle / 180);
-              const y2 = 50 + 40 * Math.sin(Math.PI * currentAngle / 180);
-              const largeArcFlag = sliceAngle > 180 ? 1 : 0;
-              
-              return (
-                <path
-                  key={i}
-                  d={`M 50 50 L ${x1} ${y1} A 40 40 0 ${largeArcFlag} 1 ${x2} ${y2} Z`}
-                  fill={colors[i % colors.length]}
-                  stroke="var(--bg-primary)"
-                  strokeWidth="1"
-                />
-              );
-            })}
-            <circle cx="50" cy="50" r="25" fill="var(--bg-secondary)" />
-            <text x="50" y="55" fontSize="8" fontWeight="700" fill="var(--text-primary)" textAnchor="middle">{total}</text>
-          </svg>
-          <div className="chart-legend">
-            {data.map((d, i) => (
-              <div key={i} className="legend-item">
-                <span className="dot" style={{ backgroundColor: colors[i % colors.length] }}></span>
-                <span className="label">{d.label}: {d.value}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-    );
-  };
 
   return (
     <div className="insights-container">
@@ -151,15 +179,47 @@ const Insights = () => {
           </div>
           <div className="f-widget caution">
             <span className="fw-label">Ingredient Demand Alert</span>
-            <div className="fw-value"><AlertTriangle size={18}/> Chicken & Turkey</div>
-            <p>AI expects a 400-unit spike in Lunch Boxes. Procure more poultry by Friday.</p>
+            <div className="fw-value"><AlertTriangle size={18}/> High Prep Needed</div>
+            <p>Predictive AI expects high volume on Friday. Check the new **Inventory AI** dashboard for specific counts.</p>
           </div>
-          <div className="f-widget">
-            <span className="fw-label">Churn Risk Warning</span>
-            <div className="fw-value text-red">Stark Industries</div>
-            <p>Has not ordered in 1 week. Average frequency is every 3 days. Recommend sending 10% discount.</p>
+          <div className="f-widget marketing">
+            <span className="fw-label">Marketing Intelligence</span>
+            <div className="fw-value text-blue">{churnRisks.length} Churn Risks</div>
+            <p>Active customers who have exceeded their normal order frequency.</p>
           </div>
         </div>
+      </div>
+
+      <div className="churn-row glass-panel">
+        <div className="churn-header">
+           <TrendingDown size={20} color="#ef4444" />
+           <h3>Retention Optimization (AI Detected Risks)</h3>
+        </div>
+        <div className="churn-list">
+          {churnRisks.map(risk => (
+            <div key={risk.customerName} className="churn-item">
+              <div className="churn-info">
+                <strong>{risk.customerName}</strong>
+                <span>Last order: {risk.daysSince} days ago</span>
+              </div>
+              <div className={`risk-badge ${risk.riskLevel.toLowerCase()}`}>{risk.riskLevel} RISK</div>
+              <div className="churn-actions">
+                <button className="offer-btn btn-primary" onClick={() => sendOffer(risk.customerName, '15% Off "Miss You" Discount')}>
+                  Send 15% Offer
+                </button>
+                <button className="offer-btn btn-secondary" onClick={() => sendOffer(risk.customerName, 'Free Pastry Box Voucher')}>
+                  Gifting Loop
+                </button>
+              </div>
+            </div>
+          ))}
+          {churnRisks.length === 0 && <p className="success-msg">Zero churn risks detected. Portfolio healthy!</p>}
+        </div>
+        {marketingLog.length > 0 && (
+          <div className="marketing-log">
+            {marketingLog.map((log, i) => <div key={i} className="log-msg fade-in">{log}</div>)}
+          </div>
+        )}
       </div>
 
       <div className="analytics-row">

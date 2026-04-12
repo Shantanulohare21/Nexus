@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Mail, MessageCircle, Send, CheckCircle, Smartphone, AlertCircle, Zap, RefreshCw } from 'lucide-react';
+import { Mail, MessageCircle, Send, CheckCircle, Smartphone, AlertCircle, Zap, RefreshCw, PhoneCall, Play, Square } from 'lucide-react';
 import { useOrders } from '../context/OrderContext';
 import './Inbox.css';
 
@@ -28,7 +28,7 @@ const SentimentBadge = ({ text }) => {
 };
 
 const Inbox = () => {
-  const { addOrder } = useOrders();
+  const { addOrder, generateEstimate } = useOrders();
   const [activeTab, setActiveTab] = useState('whatsapp');
   const [waInput, setWaInput] = useState('');
   const [waMessages, setWaMessages] = useState([
@@ -39,6 +39,11 @@ const Inbox = () => {
     { id: 1, subject: "Catering Request: Tomorrow's Board Meeting", body: "Hello Team,\n\nWe need 50 Executive Lunch Boxes delivered tomorrow at 12:00 PM for the Wayne Enterprises board meeting.\n\nRegards,\nBruce Wayne", from: "bruce@wayne.com", time: "09:45 AM", status: "unprocessed" },
     { id: 2, subject: "URGENT: Order Complaint", body: "I am very disappointed with the last delivery. The food arrived LATE and cold. We need this resolved ASAP.", from: "tony@stark.com", time: "10:30 AM", status: "unprocessed" }
   ]);
+  const [calls, setCalls] = useState([
+    { id: 1, customer: "Clark Kent", phone: "+1 (555) 123-4567", duration: "2:15", transcript: "Hello, I'm calling from the Daily Planet. We need to order 25 lunch boxes for our press room tomorrow at 1:30 PM. Please confirm if that's possible.", status: "unprocessed", time: "11:00 AM" },
+    { id: 2, customer: "Diana Prince", phone: "+1 (555) 987-6543", duration: "1:45", transcript: "Hi, this is Diana. I'd like to place an order for 10 Gourmet Burgers for pick up at 2:00 PM today. Thank you.", status: "unprocessed", time: "11:15 AM" }
+  ]);
+  const [selectedCall, setSelectedCall] = useState(null);
   const [selectedEmail, setSelectedEmail] = useState(null);
   const [processing, setProcessing] = useState(false);
   const [lastGmailSync, setLastGmailSync] = useState(null);
@@ -57,6 +62,36 @@ const Inbox = () => {
     setTimeout(() => {
       setLastGmailSync(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
       setIsSyncing(false);
+    }, 2000);
+  };
+
+  const handleCallProcess = (call) => {
+    setProcessing(true);
+    const text = call.transcript;
+    setTimeout(async () => {
+      const qtyMatch = text.match(/\b(\d+)\b/);
+      const quantity = qtyMatch ? parseInt(qtyMatch[1], 10) : 1;
+      const timeMatch = text.match(/\b(\d{1,2}(?::\d{2})?\s*(?:am|pm)?)\b/i);
+      let time = "12:00 PM";
+      if (timeMatch) time = timeMatch[1].toUpperCase();
+      
+      let item = "Standard Package";
+      if (text.toLowerCase().includes('lunch')) item = "Executive Lunch Boxes";
+      if (text.toLowerCase().includes('burger')) item = "Gourmet Burgers";
+
+      await addOrder({ 
+        customerName: call.customer, 
+        item, 
+        quantity, 
+        time, 
+        date: new Date().toISOString().split('T')[0], 
+        source: 'Call', 
+        total: quantity * 25 
+      });
+
+      setCalls(prev => prev.map(c => c.id === call.id ? { ...c, status: 'processed' } : c));
+      setSelectedCall(null);
+      setProcessing(false);
     }, 2000);
   };
 
@@ -87,7 +122,7 @@ const Inbox = () => {
     }, 1500);
   };
 
-  const handleEmailProcess = (email) => {
+  const handleEmailProcess = (email, asEstimate = false) => {
     setProcessing(true);
     const text = email.body;
     setTimeout(async () => {
@@ -100,13 +135,19 @@ const Inbox = () => {
       if (text.toLowerCase().includes('lunch box')) item = "Executive Lunch Boxes";
 
       const sentiment = getSentiment(text + " " + email.subject);
-      if (sentiment !== 'Urgent') {
-        await addOrder({ customerName: email.from, item, quantity, time, date: new Date().toISOString().split('T')[0], source: 'Email', total: quantity * 25 });
+      const orderData = { customerName: email.from, item, quantity, time, date: new Date().toISOString().split('T')[0], source: 'Email', total: quantity * 25 };
+      
+      if (asEstimate) {
+        await generateEstimate(orderData);
+      } else if (sentiment !== 'Urgent') {
+        await addOrder(orderData);
       }
 
-      const reply = sentiment === 'Urgent'
-        ? `🚨 Priority Response: Your complaint has been escalated to our Customer Success team. We will contact you within 30 minutes.`
-        : `✅ Order Confirmed: Your order for ${quantity} items at ${time} has been logged. Order ID generated!`;
+      const reply = asEstimate 
+        ? `📄 Estimate Generated: We've drafted an estimate for ${quantity} items. Please review and approve it on your dashboard.`
+        : sentiment === 'Urgent'
+          ? `🚨 Priority Response: Your complaint has been escalated to our Customer Success team. We will contact you within 30 minutes.`
+          : `✅ Order Confirmed: Your order for ${quantity} items at ${time} has been logged. Order ID generated!`;
 
       setEmails(prev => prev.map(e => e.id === email.id ? { ...e, status: 'processed', reply } : e));
       setSelectedEmail(null);
@@ -151,6 +192,9 @@ const Inbox = () => {
         </button>
         <button className={`inbox-tab ${activeTab === 'email' ? 'active' : ''}`} onClick={() => setActiveTab('email')}>
           <Mail size={18} /> Email + Gmail Live
+        </button>
+        <button className={`inbox-tab ${activeTab === 'call' ? 'active' : ''}`} onClick={() => setActiveTab('call')}>
+          <PhoneCall size={18} /> Call Transcripts (AI)
         </button>
       </div>
 
@@ -223,9 +267,14 @@ const Inbox = () => {
                   </div>
                   <div className="email-content" style={{ whiteSpace: 'pre-line' }}>{selectedEmail.body}</div>
                   {selectedEmail.status === 'unprocessed' ? (
-                    <button className="btn-primary mt-4" onClick={() => handleEmailProcess(selectedEmail)} disabled={processing}>
-                      {processing ? '🤖 AI Scanning Email...' : getSentiment(selectedEmail.subject + " " + selectedEmail.body) === 'Urgent' ? '🚨 Escalate & Reply' : 'AI Scan & Convert to Order'}
-                    </button>
+                    <div className="button-group-row">
+                      <button className="btn-primary" onClick={() => handleEmailProcess(selectedEmail)} disabled={processing}>
+                        {processing ? '🤖 AI Scanning...' : getSentiment(selectedEmail.subject + " " + selectedEmail.body) === 'Urgent' ? '🚨 Escalate' : 'AI Confirm Order'}
+                      </button>
+                      <button className="btn-secondary" onClick={() => handleEmailProcess(selectedEmail, true)} disabled={processing}>
+                        Generate Estimate
+                      </button>
+                    </div>
                   ) : (
                     <div className="email-reply-mock">
                       <h4>✅ System Auto-Responder sent:</h4>
@@ -235,6 +284,62 @@ const Inbox = () => {
                 </div>
               ) : (
                 <div className="empty-state">Select an email to view and AI process</div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'call' && (
+          <div className="call-view">
+            <div className="call-sidebar">
+              <h3>Call Logs ({calls.length})</h3>
+              {calls.map(call => (
+                <div key={call.id} className={`call-item ${selectedCall?.id === call.id ? 'selected' : ''}`} onClick={() => setSelectedCall(call)}>
+                  <div className="cl-info">
+                    <div className="cl-cust">{call.customer}</div>
+                    <div className="cl-phone">{call.phone}</div>
+                  </div>
+                  <div className="cl-meta">
+                    <div className="cl-time">{call.time}</div>
+                    <div className="cl-dur">{call.duration}</div>
+                    {call.status === 'processed' && <CheckCircle size={14} color="#10b981" />}
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="call-body-zone">
+              {selectedCall ? (
+                <div className="call-reader">
+                  <div className="call-reader-header">
+                    <h2>Voice Intelligence Transcript</h2>
+                    <div className="call-controls">
+                      <button className="icon-btn-play"><Play size={16} /> Play Recording</button>
+                    </div>
+                  </div>
+                  <div className="transcript-meta">
+                    <strong>Caller:</strong> {selectedCall.customer} ({selectedCall.phone})<br />
+                    <strong>Duration:</strong> {selectedCall.duration}
+                  </div>
+                  <div className="transcript-content glass-panel">
+                    <div className="ai-tag"><Zap size={10} /> AI Transcribed</div>
+                    <p>"{selectedCall.transcript}"</p>
+                  </div>
+                  {selectedCall.status === 'unprocessed' ? (
+                    <button className="btn-primary mt-4" onClick={() => handleCallProcess(selectedCall)} disabled={processing}>
+                      {processing ? '🤖 AI Extracting Order Data...' : 'AI Convert Transcript to Order'}
+                    </button>
+                  ) : (
+                    <div className="call-processed-banner">
+                      <CheckCircle size={20} />
+                      <div>
+                        <strong>Order Logged Successfully</strong>
+                        <p>The transcript was parsed and a new order has been added to the system.</p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="empty-state">Select a call log to view the AI transcript</div>
               )}
             </div>
           </div>

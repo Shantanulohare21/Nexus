@@ -11,21 +11,35 @@ import {
   List,
   ThumbsUp,
   XCircle,
-  Eye
+  Eye,
+  ShieldAlert,
+  Zap,
+  Phone
 } from 'lucide-react';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import './Dashboard.css';
 
 const Dashboard = () => {
-  const { orders, updateOrderStatus, approveOrder } = useOrders();
+  const { orders, updateOrderStatus, approveOrder, notifications } = useOrders();
   const [viewMode, setViewMode] = useState('table'); // 'table' | 'kanban'
   const [filter, setFilter] = useState('All');
+  const [now] = useState(Date.now()); // Capture "now" on mount to remain pure during render
 
-  const filteredOrders = orders.filter(o => {
-    if (filter === 'All') return true;
-    if (filter === 'Pending' && (o.status === 'Pending' || o.status === 'Awaiting Approval')) return true;
-    return o.status === filter;
-  });
+  const filteredOrders = React.useMemo(() => {
+    const fiveMins = 5 * 60 * 1000;
+
+    return orders.filter(o => {
+      o.isDelayed = o.status === 'Pending' && (now - (o.createdAt || 0)) > fiveMins;
+      
+      if (filter === 'All') return true;
+      if (filter === 'Pending' && (o.status === 'Pending' || o.status === 'Awaiting Approval')) return true;
+      return o.status === filter;
+    });
+  }, [orders, filter]);
+
+  const isDelayed = (order) => {
+    return order.isDelayed;
+  };
 
   const handleDragEnd = (result) => {
     if (!result.destination) return;
@@ -71,6 +85,19 @@ const Dashboard = () => {
 
   return (
     <div className="dashboard-container">
+      {notifications.length > 0 && (
+        <div className="dashboard-alerts fade-in">
+          {notifications.map(n => (
+            <div key={n.id} className={`alert-banner ${n.severity}`}>
+              <ShieldAlert size={18} />
+              <div className="alert-content">
+                <strong>{n.title}:</strong> {n.message}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
       <div className="dashboard-header">
         <div className="header-left">
           <h1 className="page-title">Order Dashboard</h1>
@@ -138,8 +165,8 @@ const Dashboard = () => {
                   </td>
                   <td>{getSentimentTag(order.sentiment)}</td>
                   <td>
-                    <span className={`priority-tag ${order.priority.toLowerCase()}`}>
-                      {order.priority}
+                    <span className={`priority-tag ${order.priority.toLowerCase()} ${isDelayed(order) ? 'delayed-flash' : ''}`}>
+                      {isDelayed(order) ? 'Delayed' : order.priority}
                     </span>
                   </td>
                   <td><span className="amount">${order.total}</span></td>
@@ -191,7 +218,7 @@ const Dashboard = () => {
                               ref={provided.innerRef}
                               {...provided.draggableProps}
                               {...provided.dragHandleProps}
-                              className={`kanban-card ${snapshot.isDragging ? 'dragging' : ''} ${order.priority === 'High' ? 'high-priority' : ''}`}
+                              className={`kanban-card ${snapshot.isDragging ? 'dragging' : ''} ${order.priority === 'High' ? 'high-priority' : ''} ${isDelayed(order) ? 'delayed-pulse' : ''}`}
                             >
                               <div className="card-top">
                                 <span className="card-id">{order.id}</span>

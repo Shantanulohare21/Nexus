@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useOrders } from '../context/OrderContext';
 import { Mic, Sparkles, Send, CheckCircle, Image as ImageIcon, UploadCloud } from 'lucide-react';
 import './AddOrder.css';
@@ -29,34 +29,7 @@ const AddOrder = () => {
   // Vision State
   const [isScanning, setIsScanning] = useState(false);
 
-  useEffect(() => {
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (SpeechRecognition) {
-      recognitionRef.current = new SpeechRecognition();
-      recognitionRef.current.continuous = false;
-      recognitionRef.current.interimResults = false;
-      
-      recognitionRef.current.onresult = (event) => {
-        const transcript = event.results[0][0].transcript;
-        setAiInput(transcript);
-        setIsListening(false);
-        processAiInput(transcript, 'Voice');
-      };
-      
-      recognitionRef.current.onerror = (e) => {
-        console.error("Speech recognition error", e);
-        setIsListening(false);
-      };
-    }
-  }, []);
-
-  const handleManualSubmit = async (e) => {
-    e.preventDefault();
-    await addOrder(formData);
-    triggerSuccess();
-  };
-
-  const processAiInput = (textToProcess = aiInput, sourceOverride = null) => {
+  const processAiInput = useCallback((textToProcess = aiInput, sourceOverride = null) => {
     setIsProcessing(true);
     setExtractedData(null);
     
@@ -88,7 +61,36 @@ const AddOrder = () => {
       setFormData(extracted);
       setIsProcessing(false);
     }, 1500);
+  }, [aiInput, activeTab]);
+
+  useEffect(() => {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (SpeechRecognition) {
+      recognitionRef.current = new SpeechRecognition();
+      recognitionRef.current.continuous = false;
+      recognitionRef.current.interimResults = false;
+      
+      recognitionRef.current.onresult = (event) => {
+        const transcript = event.results[0][0].transcript;
+        setAiInput(transcript);
+        setIsListening(false);
+        processAiInput(transcript, 'Voice');
+      };
+      
+      recognitionRef.current.onerror = (e) => {
+        console.error("Speech recognition error", e);
+        setIsListening(false);
+      };
+    }
+  }, [processAiInput]);
+
+  const handleManualSubmit = async (e) => {
+    e.preventDefault();
+    await addOrder(formData);
+    triggerSuccess();
   };
+
+
 
   const simulateImageScan = () => {
     setIsScanning(true);
